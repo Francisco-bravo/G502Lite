@@ -1,0 +1,18 @@
+# Local research and proprietary software
+/analysis/
+/LGHUB/
+/dist/
+
+# Build output and device backups
+**/bin/
+**/obj/
+**/backups/
+*.user
+*.suo
+.vs/
+
+# Local credentials and diagnostics
+.env
+.env.*
+*.log
+/publish-github.ps1

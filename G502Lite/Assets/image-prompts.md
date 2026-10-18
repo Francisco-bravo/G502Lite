@@ -1,0 +1,15 @@
+# Prompts utilizados con image_gen integrado
+
+## Vista superior
+
+Edit target: attached top view of the actual Logitech G502 HERO K/DA mouse. Asset for a Windows button configuration app. Preserve EXACT mouse shape, position, camera angle and all physical controls (wheel, two cyan top controls, two small silver controls along left edge of primary click) and white/black/cyan geometric shell. Keep original 626x577 composition/aspect with mouse at same coordinates, cable at x326 and mouse body spanning roughly x211..412 y123..477, flat pure black background. Remove ALL Spanish text, leader lines, white circular annotation markers, and bottom VISTA buttons. Reconstruct the underlying wheel and button surfaces under those white markers accurately. Remove the gray G logo on palm shell and K/DA lettering on right shell, replacing only those marks with matching unmarked shell surface. No new logo, text, arrows, dots, annotations, UI, watermark or added buttons. Output a clean mouse product render on pure black, ready for app overlays. Preserve physical controls and geometry very carefully.
+
+## Vista lateral
+
+Use case precise-object-edit. Edit target attached left side view of G502 HERO K/DA. This is a mouse diagram asset for configuration software. Keep the exact left-side viewing angle, ALL three cyan thumb buttons, wheel and white/black geometric mouse housing, shading and cable. Remove all Spanish annotations, leader lines, white circle markers and their shadows completely, reconstructing the continuous cyan button surfaces underneath. Remove the G logo and any K/DA or other lettering by replacing those marks with the same surrounding unmarked white shell texture; keep the geometric gray lines. Place the unannotated mouse alone centered on pure solid black, entire mouse including short cable visible, body about 70 percent of frame height with generous black margin on both sides for future app labels. Preserve relative geometry of three cyan thumb buttons exactly. Same portrait-ish nearly square framing as reference. No text, logos, annotation circles, arrows, leader lines, buttons of UI, watermarks or new controls. Clean sharp product render matching supplied reference, suitable to overlay app-generated click targets.
+
+## Corrección final lateral
+
+Precise tiny correction to this image: remove the remaining pale gray G-shaped logo visible on the lower-right white palm shell of the mouse. Replace it with smooth unmarked white shell shading seamlessly. Preserve ALL other pixels/composition as closely as possible: black background, mouse size and position, camera angle, all three cyan side buttons, cable, geometry and gray line pattern. No text, no added logo, no labels. This is the final clean side-view asset for a mouse configuration app.
+
+El resultado aumentó la resolución y ajustó la ocupación del encuadre respecto a las capturas. Por eso el mapa usa coordenadas adaptadas a los archivos finales, no las coordenadas originales. Se conservaron los controles físicos necesarios y se validaron sus puntos visualmente.

@@ -1,0 +1,65 @@
+using System.IO;
+using System.Text;
+using System.Text.Json;
+using G502Lite.Device;
+using G502Lite;
+
+int checks=0;
+void Check(bool value,string message){checks++;if(!value)throw new Exception(message);}
+void Reject(Action action,string message){bool rejected=false;try{action();}catch(Exception e)when(e is ArgumentException or IOException){rejected=true;}Check(rejected,message);}
+Check(OnboardMemory.Crc(Encoding.ASCII.GetBytes("123456789"))==0x29b1,"CRC-CCITT published check vector");
+var snapshot=TestMemory.Create();
+if(args.Length>0)
+{
+    using var fixture=JsonDocument.Parse(File.ReadAllText(args[0]));
+    var root=fixture.RootElement;
+    snapshot=(root.TryGetProperty("backup",out var wrapped)?wrapped:root).Deserialize<MemorySnapshot>()!;
+}
+var original=snapshot.GetSector(snapshot.ActiveSector);var decoded=OnboardMemory.Decode(snapshot);
+Check(decoded.CrcValid,"Fixture CRC");
+Check(decoded.DpiLevels.SequenceEqual(new[]{1200,2400,3200,6400,0}),"Little-endian DPI table");
+Check(decoded.Buttons.Count==11,"G502 button count");
+Check(decoded.Buttons[0].Hex=="80010001","Primary click mapping");
+Check(decoded.Buttons[8].Action=="Alternar memoria","Internal function mapping");
+var patched=OnboardMemory.PatchButtons(snapshot,new Dictionary<int,string>{{9,"80020106"}});
+Check(Convert.ToHexString(patched.AsSpan(64,4))=="80020106","Keyboard shortcut wire bytes");
+Check(original.SequenceEqual(snapshot.GetSector(snapshot.ActiveSector)),"Snapshot remains immutable");
+Check(patched.AsSpan(96,64).SequenceEqual(original.AsSpan(96,64)),"Preserves G-Shift bindings");
+Check(patched.AsSpan(160,94).SequenceEqual(original.AsSpan(160,94)),"Preserves name, lighting and unknown bytes");
+Check(Enumerable.Range(0,254).Where(i=>i<64||i>=68).All(i=>patched[i]==original[i]),"Changes only the selected binding and CRC");
+Check(OnboardMemory.Crc(patched.AsSpan(0,254))==((patched[254]<<8)|patched[255]),"Recomputes checksum");
+Reject(()=>OnboardMemory.PatchButtons(snapshot,new Dictionary<int,string>{{1,"8000FFFF"}}),"Protects primary click");
+Reject(()=>OnboardMemory.PatchButtons(snapshot,new Dictionary<int,string>{{12,"80020106"}}),"Rejects out-of-range slot");
+Reject(()=>OnboardMemory.PatchButtons(snapshot,new Dictionary<int,string>{{9,"00060000"}}),"Rejects unvalidated macro writes");
+var corrupt=(byte[])original.Clone();corrupt[10]^=1;
+var sectors=snapshot.Sectors.ToDictionary(x=>x.Key,x=>x.Value);sectors[snapshot.ActiveSector]=Convert.ToHexString(corrupt);
+Reject(()=>OnboardMemory.PatchButtons(snapshot with{Sectors=sectors},new Dictionary<int,string>()),"Refuses corrupted memory");
+var allHotspots=MouseButtonLayout.Top.Concat(MouseButtonLayout.Side).ToArray();
+Check(allHotspots.Select(x=>x.Slot).Order().SequenceEqual(Enumerable.Range(1,11)),"Every physical button appears once across both views");
+Check(MouseButtonLayout.Top.Single(x=>x.Slot==8).Y<MouseButtonLayout.Top.Single(x=>x.Slot==7).Y,"G8 is above G7 as in G502 metadata");
+Check(MouseButtonLayout.Side.Select(x=>x.Slot).SequenceEqual(new[]{6,5,4}),"Side controls follow G6, G5, G4 top-to-bottom");
+Check(MouseButtonLayout.Top.Single(x=>x.Slot==10).X>MouseButtonLayout.Top.Single(x=>x.Slot==11).X,"Wheel tilt sides map to the correct assignments");
+Check(allHotspots.All(x=>x.X>0&&x.X<660&&x.Y>0&&x.Y<608),"All interactive targets are inside the image canvas");
+var cycle=LightingEffect.Cycle(8000);
+Check(Convert.ToHexString(cycle)=="0300000000001F40640000","Native cycle layout matches captured G502 LED block");
+Check(LightingEffect.Decode(cycle)==new LightingSetting(LightingMode.Cycle,null,8000),"Cycle period is read back in milliseconds");
+Check(LightingEffect.ParseCycleMilliseconds("12,5")==12500&&LightingEffect.ParseCycleMilliseconds("12.5")==12500,"Accepts decimal seconds with comma or dot");
+Check(LightingEffect.Cycle(1000)[6]==3&&LightingEffect.Cycle(60000)[6]==0xea,"Supported lower and upper periods encode correctly");
+Reject(()=>LightingEffect.Cycle(999),"Rejects too-fast cycles");
+Reject(()=>LightingEffect.Cycle(60001),"Rejects periods outside the validated range");
+Reject(()=>LightingEffect.ParseCycleMilliseconds("NaN"),"Rejects invalid interval");
+Reject(()=>LightingEffect.ParseCycleMilliseconds("1,000.2"),"Rejects ambiguous decimal separators");
+var rainbow=LightingEffect.PatchOnboard(snapshot,LightingEffect.Cycle(12500));
+Reject(()=>LightingEffect.PatchOnboard(snapshot with{Sectors=sectors},cycle),"Refuses lighting writes over a corrupted configuration");
+Check(rainbow.AsSpan(208,11).SequenceEqual(rainbow.AsSpan(219,11)),"Both LED zones receive the same gradual cycle");
+Check(Enumerable.Range(0,254).Where(i=>i<208||i>=230).All(i=>rainbow[i]==original[i]),"Cycle preserves DPI, assignments, macros, unused LED blocks and other settings");
+Check(OnboardMemory.Crc(rainbow.AsSpan(0,254))==((rainbow[254]<<8)|rainbow[255]),"Cycle updates the configuration checksum");
+Check(LightingEffect.Decode(LightingEffect.Fixed("#61E8F0",false))==new LightingSetting(LightingMode.Fixed,"#61E8F0",null),"Fixed color remains compatible");
+Check(LightingEffect.Decode(LightingEffect.Fixed("#000000",true))?.Mode==LightingMode.Off,"Off remains compatible");
+Check(StartupRegistration.BuildCommand(@"C:\Program Files\G502 Lite\G502Lite.exe")=="\"C:\\Program Files\\G502 Lite\\G502Lite.exe\" --tray","Startup command quotes executable paths with spaces and requests tray mode");
+Check(StartupRegistration.BuildCommand(@"C:\Ratón & ajustes\G502Lite.exe").EndsWith(".exe\" --tray"),"Startup preserves Unicode and literal path characters");
+Reject(()=>StartupRegistration.BuildCommand("G502Lite.exe"),"Refuses relative startup paths");
+Reject(()=>StartupRegistration.BuildCommand("C:\\G502Lite.exe\" --other"),"Refuses embedded command arguments in executable path");
+Check(!StartupRegistration.IsStartupCommand(new[]{"--startup-enable"}),"Incomplete startup commands do not change settings");
+Check(StartupRegistration.IsStartupCommand(new[]{"--startup-status","status.json"}),"Recognizes read-only startup status command");
+Console.WriteLine($"PASS: {checks} protocol, memory, physical button mapping, lighting and startup checks.");

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>G502Lite</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\G502Lite.ico</ApplicationIcon>
+    <Version>0.4.1</Version>
+  </PropertyGroup>
+  <ItemGroup><Resource Include="Assets\mouse-top.png"/><Resource Include="Assets\mouse-side.png"/><Resource Include="Assets\G502Lite.ico"/></ItemGroup>
+</Project>

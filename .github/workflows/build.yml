@@ -1,0 +1,21 @@
+name: Build and test
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build
+        run: dotnet build G502Lite/G502Lite.csproj -c Release
+      - name: Test without hardware
+        run: dotnet run --project G502Lite.Tests/G502Lite.Tests.csproj -c Release
+      - name: Publish
+        shell: pwsh
+        run: ./G502Lite/publish.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G502Lite-win-x64
+          path: dist/G502Lite/*
