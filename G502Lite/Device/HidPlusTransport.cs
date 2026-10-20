@@ -12,7 +12,8 @@ public sealed class HidPlusTransport : IAsyncDisposable
     private readonly ConcurrentDictionary<ushort,TaskCompletionSource<byte[]>> pending=new();
     private readonly Task reader;
     private bool disposed;
-    private bool faulted;
+    private volatile bool faulted;
+    public bool IsConnected=>!disposed&&!faulted;
     public HidInterface Endpoint=>endpoint;
     public HidPlusTransport(HidInterface endpoint)
     {

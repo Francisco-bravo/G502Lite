@@ -22,13 +22,24 @@ public partial class MainWindow : Window
     private bool _syncStartup;
     private bool _trayAvailable=true;
     private WindowState _restoreState=WindowState.Normal;
+    private readonly System.Windows.Threading.DispatcherTimer _connectionMonitor=new(){Interval=TimeSpan.FromSeconds(2)};
+    private bool _recoverAfterDisconnect;
+    private bool _monitoringStarted;
+    private ButtonActivityMonitor? _activity;
+    private int _activityPresses;
 
     public MainWindow()
     {
         InitializeComponent();
         Icon=System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/G502Lite;component/Assets/G502Lite.ico"));
         Height=Math.Max(MinHeight,Math.Min(Height,SystemParameters.WorkArea.Height-30));
-        Loaded += (_, _) => Start(ConnectAsync);
+        Loaded += (_, _) => StartMonitoring();
+        _connectionMonitor.Tick+=(_,_)=>
+        {
+            if(_closing)return;
+            if(_controller is {IsConnected:false})_recoverAfterDisconnect=true;
+            if((_recoverAfterDisconnect||_controller is null)&&!_busy)Start(ConnectAsync);
+        };
         Closing += OnClosing;
         StateChanged+=(_,_)=>
         {
@@ -37,6 +48,35 @@ public partial class MainWindow : Window
         };
         Activated+=(_,_)=>RefreshStartupOption();
         RefreshStartupOption();
+    }
+
+    public void StartMonitoring()
+    {
+        if(_monitoringStarted||_closing)return;
+        _monitoringStarted=true;
+        try
+        {
+            _activity=new ButtonActivityMonitor(()=>!_closing&&(IsVisible||OwnedWindows.Cast<Window>().Any(w=>w.IsVisible)));
+            _activity.Activity+=ShowButtonActivity;
+        }
+        catch(Exception ex){ActivityText.Text=$"Indicador no disponible: {ex.Message}";}
+        Start(ConnectAsync);_connectionMonitor.Start();
+    }
+
+    private void ShowButtonActivity(ButtonActivity value,int[] slots)
+    {
+        if(value.Pressed!=false)_activityPresses++;
+        string buttons=slots.Length>0?string.Join(" / ",slots.Select(x=>$"G{x}"))+" · ":"";
+        string phase=value.Pressed switch{true=>"Pulsado",false=>"Liberado",_=>"Detectado"};
+        ActivityText.Text=$"{buttons}{value.Name} · {phase}\n{_activityPresses} pulsaciones detectadas · {DateTime.Now:HH:mm:ss}";
+        ActivityText.Foreground=value.Pressed==false?Brushes.LightSteelBlue:new SolidColorBrush(Color.FromRgb(97,232,240));
+    }
+    private async Task RefreshActivityBindingsAsync()
+    {
+        if(_activity is null||_controller is null)return;
+        if(_state?.OnboardMode!="Memoria integrada"){_activity.UpdateBindings(null);return;}
+        try{_activity.UpdateBindings(await _controller.BackupMemoryAsync(_lifetime.Token));}
+        catch(Exception ex)when(ex is IOException or NotSupportedException){ActivityText.Text="Lectura de botones físicos activa; no se pudo asociar la acción con un G1–G11.";}
     }
 
     private void Start(Func<Task> action)
@@ -73,6 +113,7 @@ public partial class MainWindow : Window
 
     private async Task ConnectAsync()
     {
+        if(_controller is {IsConnected:false})_recoverAfterDisconnect=true;
         if (_controller is not null)
         {
             await _controller.DisposeAsync();
@@ -81,7 +122,25 @@ public partial class MainWindow : Window
             ClearReadings();
         }
         _controller = await DeviceController.ConnectAsync(_lifetime.Token);
+        if(_recoverAfterDisconnect)
+        {
+            _recoverAfterDisconnect=false;
+            var state=await _controller.RefreshAsync(_lifetime.Token);
+            if(state.OnboardMode=="Memoria integrada"&&!state.GHubRunning)
+            {
+                ShowState(await _controller.ReloadActiveMemoryAsync(_lifetime.Token));
+                Success("USB recuperado. Se recargó la configuración activa sin reescribir la memoria.");
+                StartupLog.Write("USB recuperado; configuración activa recargada sin escritura de memoria.");
+            }
+            else
+            {
+                ShowState(state);
+                Success("USB recuperado. El modo actual u otro controlador impide recargar los botones automáticamente.");
+            }
+            await RefreshActivityBindingsAsync();return;
+        }
         ShowState(await _controller.RefreshAsync(_lifetime.Token));
+        await RefreshActivityBindingsAsync();
         Success("Mouse conectado. Estado leído directamente del dispositivo.");
     }
 
@@ -132,6 +191,7 @@ public partial class MainWindow : Window
         RateCombo.IsEnabled = rateReady;
         ApplyRateButton.IsEnabled = rateReady;
         ButtonsButton.IsEnabled=ready;
+        RecoverButtonsButton.IsEnabled=ready;
         bool lightsReady = ready && _state!.SupportsLighting;
         ColorInput.IsEnabled = lightsReady;
         LightingModeCombo.IsEnabled=lightsReady;
@@ -147,6 +207,11 @@ public partial class MainWindow : Window
     }
 
     private void Connect_Click(object sender, RoutedEventArgs e) => Start(ConnectAsync);
+    private void RecoverButtons_Click(object sender,RoutedEventArgs e)=>Start(async()=>
+    {
+        ShowState(await _controller!.ReloadActiveMemoryAsync(_lifetime.Token));
+        Success("Configuración activa recargada. Prueba los botones; la memoria guardada no se modificó.");
+    });
     private void Refresh_Click(object sender, RoutedEventArgs e) => Start(async () =>
     {
         ShowState(await _controller!.RefreshAsync(_lifetime.Token));
@@ -155,7 +220,7 @@ public partial class MainWindow : Window
     private void Buttons_Click(object sender,RoutedEventArgs e)=>Start(async()=>
     {
         var backup=await _controller!.BackupMemoryAsync(_lifetime.Token);
-        var editor=new ButtonEditorWindow(_controller,backup){Owner=this};
+        var editor=new ButtonEditorWindow(_controller,backup,_activity){Owner=this};
         editor.ShowDialog();
         ShowState(await _controller.RefreshAsync(_lifetime.Token));
         Success("Estado actualizado tras revisar botones.");
@@ -225,6 +290,8 @@ public partial class MainWindow : Window
         e.Cancel = true;
         if (_closing) return;
         _closing = true;
+        _connectionMonitor.Stop();
+        _activity?.Dispose();
         IsEnabled = false;
         _lifetime.Cancel();
         try

@@ -34,9 +34,12 @@ public sealed class ButtonEditorWindow : Window
     private bool busy;
     private bool closeAfterOperation;
     private static readonly List<BindingChoice> Choices=CreateChoices();
-    public ButtonEditorWindow(DeviceController device,MemorySnapshot snapshot)
+    private readonly ButtonActivityMonitor? activity;
+    private readonly TextBlock activityText=new(){Text="Prueba: pulsa un botón del mouse para verlo aquí.",TextWrapping=TextWrapping.Wrap,Foreground=new SolidColorBrush(Color.FromRgb(116,245,156)),Margin=new Thickness(0,10,0,0)};
+    internal ButtonEditorWindow(DeviceController device,MemorySnapshot snapshot,ButtonActivityMonitor? activity=null)
     {
         this.device=device;this.snapshot=snapshot;
+        this.activity=activity;
         Title="G502 Lite · Botones";Width=1160;Height=830;MinWidth=1000;MinHeight=720;
         Background=new SolidColorBrush(Color.FromRgb(11,16,32));Foreground=Brushes.White;FontFamily=new FontFamily("Segoe UI");FontSize=14;
         WindowStartupLocation=WindowStartupLocation.CenterOwner;
@@ -64,17 +67,28 @@ public sealed class ButtonEditorWindow : Window
         map.ButtonSelected+=Select;
         var actions=new WrapPanel{Margin=new Thickness(0,18,0,0)};
         AddAction(actions,"Guardar en el mouse",SaveAsync);AddAction(actions,"Descartar cambios",DiscardAsync);AddAction(actions,"Exportar copia",ExportAsync);AddAction(actions,"Restaurar copia…",RestoreAsync);
-        Grid.SetRow(actions,2);root.Children.Add(actions);Grid.SetRow(status,3);root.Children.Add(status);
+        Grid.SetRow(actions,2);root.Children.Add(actions);
+        var footer=new StackPanel();footer.Children.Add(status);footer.Children.Add(activityText);Grid.SetRow(footer,3);root.Children.Add(footer);
+        if(activity is not null)activity.Activity+=OnButtonActivity;
+        Closed+=(_,_)=>{if(activity is not null)activity.Activity-=OnButtonActivity;};
         Closing+=(_,e)=>{if(busy){e.Cancel=true;closeAfterOperation=true;status.Text="Terminando la operación antes de cerrar…";}};
         Render();
     }
     private void Render()
     {
+        activity?.UpdateBindings(snapshot);
         var state=OnboardMemory.Decode(snapshot);
         Select(selected);
         status.Foreground=Brushes.LightSteelBlue;
         status.Text=$"Niveles DPI: {string.Join(" / ",state.DpiLevels.Where(x=>x>0))}. Los cambios se aplican al pulsar Guardar en el mouse.";
         if(!state.CrcValid){status.Text="La memoria activa no tiene un CRC válido. Exporta una copia de su estado o restaura una copia válida.";status.Foreground=Brushes.LightSalmon;}
+    }
+    private void OnButtonActivity(ButtonActivity value,int[] slots)
+    {
+        string buttons=slots.Length>0?string.Join(" / ",slots.Select(x=>$"G{x}"))+" · ":"";
+        string phase=value.Pressed switch{true=>"Pulsado",false=>"Liberado",_=>"Detectado"};
+        activityText.Text=$"{buttons}{value.Name} · {phase} · {DateTime.Now:HH:mm:ss}"+(slots.Length>1?" · Acción compartida: no se distingue el botón físico.":"");
+        if(value.Pressed!=false)map.Pulse(slots);
     }
     private string Label(int slot,string hex)=>Choices.FirstOrDefault(x=>x.Hex==hex)?.Name??OnboardMemory.Decode(snapshot).Buttons[slot-1].Action;
     private string StoredHex(int slot)=>Convert.ToHexString(snapshot.GetSector(snapshot.ActiveSector).AsSpan(32+(slot-1)*4,4));

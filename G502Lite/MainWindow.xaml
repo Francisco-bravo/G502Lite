@@ -31,6 +31,11 @@
                         <WrapPanel x:Name="QuickDpiPanel" Margin="0,0,0,15" IsEnabled="False"><Button Content="1200" Tag="1200" Click="QuickDpi_Click" Padding="13,9" Margin="0,0,7,7"/><Button Content="2400" Tag="2400" Click="QuickDpi_Click" Padding="13,9" Margin="0,0,7,7"/><Button Content="3200" Tag="3200" Click="QuickDpi_Click" Padding="13,9" Margin="0,0,7,7"/><Button Content="6400" Tag="6400" Click="QuickDpi_Click" Padding="13,9" Margin="0,0,7,7"/></WrapPanel>
                         <Button x:Name="ApplyDpiButton" Content="Aplicar DPI" Background="#61E8F0" Foreground="#0B1020" Click="ApplyDpi_Click" IsEnabled="False" HorizontalAlignment="Left"/>
                         <Border Background="#0E1728" CornerRadius="8" Padding="12" Margin="0,23,0,0"><StackPanel><TextBlock Text="Lectura del dispositivo" FontWeight="SemiBold" FontSize="12"/><TextBlock x:Name="DpiLevelsText" Text="Niveles: —" Style="{StaticResource Caption}" Margin="0,5,0,0"/></StackPanel></Border>
+                        <Border Background="#0E1728" CornerRadius="8" Padding="12" Margin="0,14,0,0"><StackPanel>
+                            <TextBlock Text="PRUEBA DE BOTONES" FontSize="11" FontWeight="SemiBold" Foreground="#74F59C"/>
+                            <TextBlock x:Name="ActivityText" Text="Pulsa un botón del mouse…" TextWrapping="Wrap" FontSize="15" Foreground="#61E8F0" Margin="0,8,0,7"/>
+                            <TextBlock Text="Clics, rueda, multimedia y atajos del G502. No bloquea las acciones. Las funciones internas de DPI no envían una pulsación a Windows." Style="{StaticResource Caption}" FontSize="11"/>
+                        </StackPanel></Border>
                     </StackPanel>
                 </Border>
                 <StackPanel Grid.Column="2">
@@ -61,6 +66,7 @@
             </Grid>
         </ScrollViewer>
         <StackPanel Grid.Row="3" Margin="0,16,0,0"><TextBlock x:Name="StatusText" Text="Listo para conectar." TextWrapping="Wrap" FontSize="13"/><TextBlock x:Name="GHubWarningText" Text="G HUB está ejecutándose y puede volver a aplicar sus ajustes." TextWrapping="Wrap" Foreground="#F3BD7D" Margin="0,7,0,0" Visibility="Collapsed"/>
+            <Button x:Name="RecoverButtonsButton" Content="Recuperar botones" Click="RecoverButtons_Click" IsEnabled="False" HorizontalAlignment="Left" Margin="0,10,0,0" ToolTip="Recargar la configuración activa del mouse sin reescribir la memoria. Úsalo si las asignaciones guardadas dejan de responder tras una desconexión USB."/>
             <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <CheckBox x:Name="StartupCheckBox" Content="Iniciar con Windows en la bandeja" Foreground="#CED9EB" VerticalAlignment="Center" Checked="Startup_Changed" Unchecked="Startup_Changed" ToolTip="Al iniciar sesión se mostrará solo el icono de G502 Lite. Puedes desactivarlo aquí."/>
                 <TextBlock Grid.Column="1" Text="Local · Sin cuenta · Sin telemetría" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,16,0" FontSize="11"/>

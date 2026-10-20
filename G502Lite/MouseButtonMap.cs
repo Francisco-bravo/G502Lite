@@ -38,11 +38,32 @@ internal sealed class MouseButtonMap : UserControl
     private IReadOnlySet<int> changed=new HashSet<int>();
     private bool side;
     private int selected;
+    private HashSet<int> pulsing=new();
+    private readonly Dictionary<int,Border> circles=new();
+    private readonly Dictionary<int,Button> labelButtons=new();
+    private readonly System.Windows.Threading.DispatcherTimer pulseTimer=new(){Interval=TimeSpan.FromMilliseconds(650)};
     public event Action<int>? ButtonSelected;
     public MouseButtonMap()
     {
         Content=new Viewbox{Child=canvas,Stretch=Stretch.Uniform,StretchDirection=StretchDirection.Both};
         MinHeight=320;
+        pulseTimer.Tick+=(_,_)=>{pulseTimer.Stop();pulsing.Clear();UpdatePulse();};
+        Unloaded+=(_,_)=>{pulseTimer.Stop();pulsing.Clear();};
+    }
+    public void Pulse(IEnumerable<int> slots)
+    {
+        pulsing=slots.ToHashSet();UpdatePulse();pulseTimer.Stop();pulseTimer.Start();
+    }
+    private void UpdatePulse()
+    {
+        foreach(var item in circles)
+        {
+            bool lit=pulsing.Contains(item.Key);
+            item.Value.Background=new SolidColorBrush(lit?Color.FromRgb(116,245,156):selected==item.Key?Color.FromRgb(97,232,240):Color.FromRgb(18,41,58));
+            item.Value.BorderBrush=lit?new SolidColorBrush(Color.FromRgb(116,245,156)):Brushes.White;
+            item.Value.BorderThickness=new Thickness(lit?3:2);
+        }
+        foreach(var item in labelButtons)item.Value.Background=new SolidColorBrush(pulsing.Contains(item.Key)?Color.FromRgb(29,74,49):selected==item.Key?Color.FromRgb(18,49,57):Color.FromRgb(11,17,25));
     }
     public void SetState(bool side,int selected,IReadOnlyDictionary<int,string> labels,IReadOnlySet<int> changed)
     {
@@ -50,7 +71,7 @@ internal sealed class MouseButtonMap : UserControl
     }
     private void Draw()
     {
-        canvas.Children.Clear();
+        canvas.Children.Clear();circles.Clear();labelButtons.Clear();
         var image=new Image{Width=660,Height=608,Stretch=Stretch.Fill,IsHitTestVisible=false,
             Source=new BitmapImage(new Uri($"pack://application:,,,/G502Lite;component/Assets/mouse-{(side?"side":"top")}.png"))};
         RenderOptions.SetBitmapScalingMode(image,BitmapScalingMode.HighQuality);canvas.Children.Add(image);
@@ -72,6 +93,7 @@ internal sealed class MouseButtonMap : UserControl
                 Background=active?new SolidColorBrush(Color.FromRgb(18,49,57)):new SolidColorBrush(Color.FromRgb(11,17,25)),
                 ToolTip=$"G{item.Slot} · {MouseButtonLayout.Position(item.Slot)}: {label}"};
             text.Click+=(_,_)=>ButtonSelected?.Invoke(item.Slot);
+            labelButtons[item.Slot]=text;
             System.Windows.Automation.AutomationProperties.SetName(text,$"Configurar G{item.Slot}: {label}");
             Canvas.SetLeft(text,item.LabelX);Canvas.SetTop(text,item.LabelY);canvas.Children.Add(text);
         }
@@ -84,8 +106,10 @@ internal sealed class MouseButtonMap : UserControl
             var circle=new Border{Width=16,Height=16,CornerRadius=new CornerRadius(8),BorderThickness=new Thickness(2),
                 BorderBrush=Brushes.White,Background=active?new SolidColorBrush(Color.FromRgb(97,232,240)):new SolidColorBrush(Color.FromRgb(18,41,58))};
             point.Content=circle;point.Click+=(_,_)=>ButtonSelected?.Invoke(item.Slot);
+            circles[item.Slot]=circle;
             System.Windows.Automation.AutomationProperties.SetName(point,$"Punto G{item.Slot} · {MouseButtonLayout.Position(item.Slot)}");
             Canvas.SetLeft(point,item.X-13);Canvas.SetTop(point,item.Y-13);canvas.Children.Add(point);
         }
+        UpdatePulse();
     }
 }

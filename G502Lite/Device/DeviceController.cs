@@ -32,6 +32,32 @@ public sealed class DeviceController : IAsyncDisposable
     private readonly List<int> reportRates=new();
     private DeviceState? state;
     private DeviceController(HidPlusTransport transport) { this.transport=transport; }
+    public bool IsConnected=>transport.IsConnected;
+
+    public async Task<DeviceState> ReloadActiveMemoryAsync(CancellationToken token=default)
+    {
+        await operations.WaitAsync(token);
+        try
+        {
+            if(onboardFeature is not byte feature)throw new NotSupportedException("No hay memoria integrada compatible.");
+            if(IsGHubRunning())throw new IOException("Cierra G HUB antes de recuperar los botones.");
+            var before=await RefreshCoreAsync(token);
+            if(before.OnboardMode!="Memoria integrada")throw new IOException("La recuperación requiere el modo Memoria integrada. No se cambió el modo del mouse.");
+            var snapshot=await OnboardMemory.ReadAsync(transport,feature,token);
+            if(!OnboardMemory.Decode(snapshot).CrcValid)throw new IOException("La memoria activa no tiene un CRC válido. No se recargó.");
+            var sector=snapshot.ActiveSector;
+            // Reload only the existing active configuration. Never rewrite flash or replay a failed save.
+            await transport.RequestAsync(feature,3,new[]{(byte)(sector>>8),(byte)sector},token);
+            await transport.RequestAsync(dpiFeature,3,new[]{(byte)0,(byte)(before.Dpi>>8),(byte)before.Dpi},token);
+            var after=await OnboardMemory.ReadAsync(transport,feature,token);
+            if(after.ActiveSector!=sector||after.Descriptor!=snapshot.Descriptor||after.Sectors.Count!=snapshot.Sectors.Count||snapshot.Sectors.Any(x=>!after.Sectors.TryGetValue(x.Key,out var hex)||hex!=x.Value))
+                throw new IOException("La memoria cambió durante la recuperación. No se reescribió ningún sector.");
+            var current=await RefreshCoreAsync(token);
+            if(current.Dpi!=before.Dpi)throw new IOException("La recarga terminó, pero la sensibilidad leída no coincide con la anterior.");
+            return current;
+        }
+        finally{operations.Release();}
+    }
 
     public static async Task<DeviceController> ConnectAsync(CancellationToken token=default)
     {

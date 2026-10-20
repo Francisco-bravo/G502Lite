@@ -1,4 +1,4 @@
-# G502 Lite 0.4.1
+# G502 Lite 0.4.3
 
 Aplicación independiente para Windows y Logitech G502 HERO / HERO K/DA USB (`046D:C08B`). Interfaz e implementación propias, basadas en la investigación del protocolo HID++. No necesita ejecutar G HUB.
 
@@ -10,7 +10,7 @@ Al abrir la ventana, únicamente consulta el dispositivo. Pulsa **Aplicar** para
 
 ## Inicio con Windows y bandeja
 
-La opción **Iniciar con Windows en la bandeja**, al pie de la ventana, registra el ejecutable actual para iniciar al entrar en tu sesión de Windows. Se abre únicamente su icono de ratón en la zona de iconos, sin ventana ni botón en la barra de tareas. El inicio oculto no vuelve a aplicar ajustes del mouse. Puedes desactivar esta opción desde la misma casilla o desde el menú del icono.
+La opción **Iniciar con Windows en la bandeja**, al pie de la ventana, registra el ejecutable actual para iniciar al entrar en tu sesión de Windows. Se abre únicamente su icono de ratón en la zona de iconos, sin ventana ni botón en la barra de tareas. El inicio oculto consulta el mouse sin reescribir ajustes. La aplicación vigila la conexión también en la bandeja. Puedes desactivar esta opción desde la misma casilla o desde el menú del icono.
 
 - Clic en el icono: abrir G502 Lite. También puedes volver a ejecutar el EXE para recuperar la misma ventana.
 - Clic derecho: **Abrir G502 Lite**, **Iniciar con Windows** y **Salir**.
@@ -24,6 +24,18 @@ El inicio utiliza el acceso directo `G502 Lite.lnk` en la carpeta Inicio del usu
 
 El diagnóstico local de arranque queda en `%LOCALAPPDATA%\G502Lite\startup.log` (con rotación a partir de 64 KiB). Registra fecha, proceso, ruta, creación del icono, salida y errores; no contiene ajustes ni datos del mouse.
 
+## Recuperación tras desconexión USB
+
+Si el hub USB o el mouse se desconectan, G502 Lite descarta la conexión HID anterior y vuelve a buscar el dispositivo cada dos segundos. Tras recuperar una conexión previamente establecida, si el mouse está en memoria integrada y G HUB no está activo, recarga la misma configuración activa para recuperar las asignaciones. No cambia de configuración ni de modo, no reescribe sectores y no repite guardados interrumpidos. Comprueba el CRC, conserva el DPI actual y compara la memoria antes y después. Si falla la validación, muestra el error.
+
+También puedes pulsar **Recuperar botones** para recargar manualmente la configuración activa. Si guardaste cambios en un editor abierto durante la desconexión, ciérralo para permitir recuperar la conexión y vuelve a leer la memoria antes de guardar.
+## Indicador de pulsaciones
+
+La tarjeta **Prueba de botones** muestra la última acción recibida del G502, su pulsación/liberación, la hora y un contador. En **Botones**, los puntos y etiquetas de la imagen destellan en verde durante unos instantes cuando la acción recibida coincide con una asignación guardada. Se utiliza la configuración guardada, no una propuesta pendiente de guardar. Si varios botones comparten la misma acción, se muestran los candidatos sin afirmar cuál se pulsó.
+
+Detecta clics, rueda, controles multimedia y los atajos de teclado admitidos enviados por el propio G502. Solo procesa eventos de dispositivos con VID/PID 046D:C08B mientras la ventana principal o el editor están visibles; no recoge las teclas de otros teclados ni guarda un historial en disco. El contador se reinicia al cerrar el programa. La detección no bloquea ni ejecuta acciones: las aplicaciones siguen recibiendo las pulsaciones normalmente.
+
+Los controles internos como DPI, G-Shift o cambio de memoria no siempre producen eventos de entrada en Windows y no se presentan como pulsaciones detectadas. En modo software, las acciones recibidas pueden diferir de la configuración integrada. La tarjeta confirma que llegó una entrada, no que YouTube u otro reproductor la haya ejecutado.
 ## Funciones
 
 - DPI actual: 100–25600, en pasos de 50 negociados con este mouse. Confirmación mediante lectura directa. Es un cambio inmediato; la tabla integrada original de niveles se conserva y puede volver a aplicarse al pulsar los botones de DPI o reiniciar el dispositivo.
@@ -55,7 +67,7 @@ dotnet run --project G502Lite.Tests/G502Lite.Tests.csproj -c Release
 powershell -ExecutionPolicy Bypass -File G502Lite/publish.ps1
 ```
 
-Los 41 tests automáticos cubren integridad de memoria/protocolo, correspondencia de botones, iluminación y validación del comando de inicio. Usan datos sintéticos; no requieren mouse, copias de memoria ni archivos privados y no modifican el Registro. Las pruebas con hardware se realizaron en un G502 HERO K/DA en modo integrado. El repositorio no incluye volcados del dispositivo, registros locales ni binarios de G HUB.
+Los 60 tests automáticos cubren integridad de memoria/protocolo, correspondencia de botones, iluminación y validación del comando de inicio. Usan datos sintéticos; no requieren mouse, copias de memoria ni archivos privados y no modifican el Registro. Las pruebas con hardware se realizaron en un G502 HERO K/DA en modo integrado. El repositorio no incluye volcados del dispositivo, registros locales ni binarios de G HUB.
 
 Diagnóstico y copia de solo lectura (esperar al proceso al usar PowerShell):
 

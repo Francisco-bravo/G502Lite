@@ -33,6 +33,7 @@ public partial class App : Application
         MainWindow = window;
         try{tray=new TrayIcon(window.ShowFromTray,window.RequestExit);window.SetTrayMenu(tray.Menu);StartupLog.Write("Icono de bandeja registrado.");}
         catch(Exception ex){StartupLog.Write($"Error al crear la bandeja: {ex}");window.SetTrayAvailable(false);window.Show();MessageBox.Show(window,ex.Message,"G502 Lite");return;}
+        window.StartMonitoring();
         if(!startHidden)window.Show();
     }
     protected override void OnExit(ExitEventArgs e)
