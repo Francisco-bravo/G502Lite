@@ -58,12 +58,12 @@ internal sealed class G502KeyboardActivity
         if(held.ContainsKey(id))return null;
         int usage=key switch
         {
-            >=0x41 and <=0x5a=>key-0x41+4,>=0x70 and <=0x7b=>key-0x70+0x3a,
+            >=0x41 and <=0x5a=>key-0x41+4,>=0x70 and <=0x7b=>key-0x70+0x3a,>=0x7c and <=0x87=>key-0x7c+0x68,
             >=0x31 and <=0x39=>key-0x31+0x1e,0x30=>0x27,
             0x0d=>0x28,0x1b=>0x29,0x08=>0x2a,0x09=>0x2b,0x20=>0x2c,_=>0
         };
         if(usage==0)return null;
-        string name=key switch{>=0x41 and <=0x5a=>((char)key).ToString(),>=0x70 and <=0x7b=>$"F{key-0x70+1}",>=0x30 and <=0x39=>((char)key).ToString(),0x0d=>"Enter",0x1b=>"Escape",0x08=>"Retroceso",0x09=>"Tabulación",_=>"Espacio"};
+        string name=key switch{>=0x41 and <=0x5a=>((char)key).ToString(),>=0x70 and <=0x87=>$"F{key-0x70+1}",>=0x30 and <=0x39=>((char)key).ToString(),0x0d=>"Enter",0x1b=>"Escape",0x08=>"Retroceso",0x09=>"Tabulación",_=>"Espacio"};
         string prefix=((modifiers&0x11)!=0?"Ctrl+":"")+((modifiers&0x22)!=0?"Shift+":"")+((modifiers&0x44)!=0?"Alt+":"")+((modifiers&0x88)!=0?"Win+":"");
         var value=new ButtonActivity($"8002{modifiers:X2}{usage:X2}",prefix+name,true);held[id]=value;return value;
     }

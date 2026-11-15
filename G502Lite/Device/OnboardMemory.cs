@@ -83,6 +83,8 @@ internal static class OnboardMemory
     }
     public static string Describe(byte[] b)
     {
+        if(Convert.ToHexString(b)==G502Lite.TripleClick.Binding)return G502Lite.TripleClick.Name+" · requiere G502 Lite";
+        if(Convert.ToHexString(b)==G502Lite.HoldClick.Binding)return G502Lite.HoldClick.Name+" · requiere G502 Lite";
         if(b[0]==0x80)
         {
             var value=(b[2]<<8)|b[3];

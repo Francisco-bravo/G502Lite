@@ -33,7 +33,7 @@ También puedes pulsar **Recuperar botones** para recargar manualmente la config
 
 La tarjeta **Prueba de botones** muestra la última acción recibida del G502, su pulsación/liberación, la hora y un contador. En **Botones**, los puntos y etiquetas de la imagen destellan en verde durante unos instantes cuando la acción recibida coincide con una asignación guardada. Se utiliza la configuración guardada, no una propuesta pendiente de guardar. Si varios botones comparten la misma acción, se muestran los candidatos sin afirmar cuál se pulsó.
 
-Detecta clics, rueda, controles multimedia y los atajos de teclado admitidos enviados por el propio G502. Solo procesa eventos de dispositivos con VID/PID 046D:C08B mientras la ventana principal o el editor están visibles; no recoge las teclas de otros teclados ni guarda un historial en disco. El contador se reinicia al cerrar el programa. La detección no bloquea ni ejecuta acciones: las aplicaciones siguen recibiendo las pulsaciones normalmente.
+Detecta clics, rueda, controles multimedia y los atajos de teclado admitidos enviados por el propio G502. Solo procesa eventos de dispositivos con VID/PID 046D:C08B. El indicador se actualiza con la ventana principal o el editor visibles; si hay una acción de clics automáticos asignada, el procesamiento permanece activo en la bandeja; no recoge las teclas de otros teclados ni guarda un historial en disco. El contador se reinicia al cerrar el programa. El indicador no bloquea entradas: las aplicaciones siguen recibiendo las pulsaciones normalmente. La asignación opcional de triple clic sí genera clics adicionales.
 
 Los controles internos como DPI, G-Shift o cambio de memoria no siempre producen eventos de entrada en Windows y no se presentan como pulsaciones detectadas. En modo software, las acciones recibidas pueden diferir de la configuración integrada. La tarjeta confirma que llegó una entrada, no que YouTube u otro reproductor la haya ejecutado.
 ## Funciones
@@ -82,3 +82,19 @@ Diagnóstico y copia de solo lectura (esperar al proceso al usar PowerShell):
 `--tray` abre únicamente el icono de bandeja. `--startup-enable resultado.json` y `--startup-disable resultado.json` permiten activar/desactivar el inicio automático de la misma forma que la casilla; devuelven el estado en el JSON indicado.
 
 Referencias del protocolo: [Logitech HID++](https://github.com/Logitech/cpg-docs/tree/master/hidpp20), [libratbag](https://github.com/libratbag/libratbag) y [Solaar](https://github.com/pwr-Solaar/Solaar), consultadas para interoperabilidad. No se incorpora su código. El ejecutable no contiene ni carga código o binarios de LGHUB. Las dos imágenes del mouse son versiones editadas con la herramienta integrada de imágenes a partir de las capturas proporcionadas por el usuario: se quitaron textos, líneas, marcadores y logos; la aplicación dibuja encima sus propios controles. Están integradas en el ejecutable administrado como recursos de `Assets`.
+
+### Triple clic izquierdo
+
+En **Botones**, selecciona un botón distinto del principal, elige **Triple clic izquierdo · requiere G502 Lite** y pulsa **Guardar en el mouse**. Cada pulsación envía tres clics izquierdos completos en la posición actual del cursor; mantener pulsado no repite la secuencia. Funciona también con la ventana oculta en la bandeja.
+
+Esta acción necesita G502 Lite en ejecución. Se guarda F24 (HID 0x73) como señal en el mouse: solo se procesa la interfaz del G502 HERO y una asignación leída de su memoria con CRC válido. No se interceptan teclados externos. F24 sigue llegando a Windows, por lo que no debe configurarse como atajo en otra aplicación. Al salir de G502 Lite el botón solo envía F24. Para quitarlo, guarda otra asignación en ese botón.
+
+Se usa [SendInput de Windows](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput); las aplicaciones ejecutadas con mayor nivel de privilegios pueden bloquearlo. La interpretación del triple clic depende de la aplicación de destino. La prueba de botones muestra la pulsación del disparador, no una confirmación de que el programa de destino aceptó los tres clics.
+
+### Clic continuo mientras mantienes pulsado
+
+En **Botones**, elige **Clic continuo mientras mantienes pulsado · requiere G502 Lite** y guarda. Envía un clic izquierdo inmediato y después a la velocidad elegida (10 clics/s de forma predeterminada), sin mover el cursor. Al soltar se detiene; no es un interruptor y no deja clics pendientes. También se cancela al desconectar un dispositivo, actualizar las asignaciones, cerrar G502 Lite o fallar la inyección de clics.
+
+Funciona con G502 Lite abierto o en la bandeja y reserva F23 (HID 0x72) como señal del mouse. Evita utilizar F23 como atajo en otras aplicaciones. Tiene las mismas limitaciones de permisos de Windows que el triple clic; con G502 Lite cerrado solo envía F23. Cada clic incluye pulsación y liberación, sin dejar el botón izquierdo sostenido entre repeticiones.
+
+La opción **Velocidad de clic continuo** permite elegir entre **1 y 50 clics por segundo**. Pulsa **Guardar velocidad**: se aplica a todos los botones de clic continuo y se conserva en `%LOCALAPPDATA%\G502Lite\click-speed.json`, incluso al actualizar la aplicación. Es independiente de **Guardar en el mouse** y de **Descartar cambios**, que afectan a las asignaciones. Cambiar la velocidad detiene una repetición activa; vuelve a pulsar para usarla. La frecuencia real puede variar según Windows y la aplicación de destino.

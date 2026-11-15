@@ -76,7 +76,7 @@ public partial class MainWindow : Window
         if(_activity is null||_controller is null)return;
         if(_state?.OnboardMode!="Memoria integrada"){_activity.UpdateBindings(null);return;}
         try{_activity.UpdateBindings(await _controller.BackupMemoryAsync(_lifetime.Token));}
-        catch(Exception ex)when(ex is IOException or NotSupportedException){ActivityText.Text="Lectura de botones físicos activa; no se pudo asociar la acción con un G1–G11.";}
+        catch(Exception ex)when(ex is IOException or NotSupportedException){_activity.UpdateBindings(null);ActivityText.Text="Lectura de botones físicos activa; no se pudo asociar la acción con un G1–G11.";}
     }
 
     private void Start(Func<Task> action)
@@ -113,6 +113,7 @@ public partial class MainWindow : Window
 
     private async Task ConnectAsync()
     {
+        _activity?.UpdateBindings(null);
         if(_controller is {IsConnected:false})_recoverAfterDisconnect=true;
         if (_controller is not null)
         {

@@ -8,7 +8,7 @@
     <AssemblyName>G502Lite</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\G502Lite.ico</ApplicationIcon>
-    <Version>0.4.3</Version>
+    <Version>0.4.6</Version>
   </PropertyGroup>
   <ItemGroup><Resource Include="Assets\mouse-top.png"/><Resource Include="Assets\mouse-side.png"/><Resource Include="Assets\G502Lite.ico"/></ItemGroup>
 </Project>

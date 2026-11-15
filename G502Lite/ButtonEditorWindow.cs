@@ -28,6 +28,9 @@ public sealed class ButtonEditorWindow : Window
     private readonly TextBlock pendingText=new(){TextWrapping=TextWrapping.Wrap,Foreground=new SolidColorBrush(Color.FromRgb(224,163,212)),Margin=new Thickness(0,22,0,0)};
     private readonly Button topButton=new(){Content="Vista superior",Margin=new Thickness(0,0,8,0)};
     private readonly Button sideButton=new(){Content="Vista lateral"};
+    private readonly StackPanel speedPanel=new(){Margin=new Thickness(0,12,0,0)};
+    private readonly Slider speedSlider=new(){Minimum=ClickSpeedSettings.Minimum,Maximum=ClickSpeedSettings.Maximum,TickFrequency=1,IsSnapToTickEnabled=true,SmallChange=1,LargeChange=5};
+    private readonly TextBlock speedText=new(){TextWrapping=TextWrapping.Wrap};
     private int selected=1;
     private bool side;
     private bool changingSelection;
@@ -58,10 +61,25 @@ public sealed class ButtonEditorWindow : Window
         Grid.SetRow(body,1);root.Children.Add(body);
         var picture=new Border{Background=Brushes.Black,CornerRadius=new CornerRadius(16),ClipToBounds=true,Child=map};body.Children.Add(picture);
         var editor=new StackPanel();
-        var card=new Border{Style=(Style)FindResource("Card"),Child=editor,VerticalAlignment=VerticalAlignment.Top};Grid.SetColumn(card,2);body.Children.Add(card);
+        var card=new Border{Style=(Style)FindResource("Card"),Child=new ScrollViewer{Content=editor,VerticalScrollBarVisibility=ScrollBarVisibility.Auto},VerticalAlignment=VerticalAlignment.Stretch};Grid.SetColumn(card,2);body.Children.Add(card);
         editor.Children.Add(selectionTitle);editor.Children.Add(positionText);
         editor.Children.Add(new TextBlock{Text="ASIGNACIÓN GUARDADA",FontSize=11,Foreground=Brushes.LightSteelBlue});editor.Children.Add(savedText);
         editor.Children.Add(new TextBlock{Text="Nueva asignación",FontWeight=FontWeights.SemiBold});editor.Children.Add(assignment);editor.Children.Add(selectionHelp);editor.Children.Add(pendingText);
+        editor.Children.Add(speedPanel);
+        speedPanel.Children.Add(new TextBlock{Text="Velocidad de clic continuo",FontWeight=FontWeights.SemiBold});
+        speedPanel.Children.Add(speedSlider);speedPanel.Children.Add(speedText);
+        speedSlider.Value=activity?.ClicksPerSecond??ClickSpeedSettings.Load();
+        void ShowSpeed()=>speedText.Text=$"{(int)speedSlider.Value} clics/s · {1000d/speedSlider.Value:0.#} ms entre clics (aprox.)";
+        speedSlider.ValueChanged+=(_,_)=>ShowSpeed();ShowSpeed();
+        System.Windows.Automation.AutomationProperties.SetName(speedSlider,"Velocidad de clic continuo, de 1 a 50 clics por segundo");
+        var saveSpeed=new Button{Content="Guardar velocidad",Margin=new Thickness(0,8,0,0),IsEnabled=activity is not null};
+        speedPanel.Children.Add(saveSpeed);
+        speedPanel.Children.Add(new TextBlock{Text="Se guarda en este PC y se aplica a todos los botones con clic continuo.",TextWrapping=TextWrapping.Wrap,Foreground=Brushes.LightSteelBlue,FontSize=12,Margin=new Thickness(0,6,0,0)});
+        saveSpeed.Click+=(_,_)=>
+        {
+            try{activity!.SetClickSpeed((int)speedSlider.Value);status.Foreground=Brushes.LightSteelBlue;status.Text=$"Velocidad guardada: {activity.ClicksPerSecond} clics/s. Se aplicará en la siguiente pulsación.";}
+            catch(Exception ex){status.Foreground=Brushes.LightSalmon;status.Text=$"No se pudo guardar la velocidad: {ex.Message}";}
+        };
         System.Windows.Automation.AutomationProperties.SetName(assignment,"Nueva asignación del botón seleccionado");
         assignment.SelectionChanged+=(_,_)=>AssignmentChanged();
         map.ButtonSelected+=Select;
@@ -103,7 +121,9 @@ public sealed class ButtonEditorWindow : Window
         try{assignment.ItemsSource=choices;assignment.SelectedItem=choices.First(x=>x.Hex==value);}
         finally{changingSelection=false;}
         assignment.IsEnabled=slot!=1&&OnboardMemory.Decode(snapshot).CrcValid;
-        selectionHelp.Text=slot==1?"El clic izquierdo se conserva.":"Elige una acción. Puedes preparar varios botones antes de guardar.";
+        selectionHelp.Text=slot==1?"El clic izquierdo se conserva.":pending.GetValueOrDefault(selected,StoredHex(selected))==HoldClick.Binding
+            ?"Repite el clic izquierdo a la velocidad elegida mientras mantienes pulsado. Se detiene al soltar. Requiere G502 Lite abierto o en la bandeja; reserva F23."
+            :"Elige una acción. Puedes preparar varios botones antes de guardar.";
         UpdateMap();
     }
     private void SwitchView(bool showSide)
@@ -120,6 +140,12 @@ public sealed class ButtonEditorWindow : Window
     }
     private void UpdateMap()
     {
+        speedPanel.Visibility=pending.GetValueOrDefault(selected,StoredHex(selected))==HoldClick.Binding?Visibility.Visible:Visibility.Collapsed;
+        if(selected!=1)selectionHelp.Text=pending.GetValueOrDefault(selected,StoredHex(selected))==TripleClick.Binding
+            ?"Tres clics izquierdos por pulsación. Funciona con G502 Lite abierto o en la bandeja. Reserva F24 como señal; evita asignar F24 en otras aplicaciones."
+            :pending.GetValueOrDefault(selected,StoredHex(selected))==HoldClick.Binding
+            ?"Repite el clic izquierdo a la velocidad elegida mientras mantienes pulsado. Se detiene al soltar. Requiere G502 Lite abierto o en la bandeja; reserva F23."
+            :"Elige una acción. Puedes preparar varios botones antes de guardar.";
         var labels=Enumerable.Range(1,11).ToDictionary(slot=>slot,slot=>Label(slot,pending.GetValueOrDefault(slot,StoredHex(slot))));
         map.SetState(side,selected,labels,pending.Keys.ToHashSet());
         var active=new SolidColorBrush(Color.FromRgb(97,232,240));var normal=new SolidColorBrush(Color.FromRgb(32,45,70));
@@ -167,6 +193,8 @@ public sealed class ButtonEditorWindow : Window
     {
         var choices=new List<BindingChoice>();
         void Add(string label,string hex)=>choices.Add(new(label,hex));
+        Add(TripleClick.Name+" · requiere G502 Lite",TripleClick.Binding);
+        Add(HoldClick.Name+" · requiere G502 Lite",HoldClick.Binding);
         Add("Clic izquierdo","80010001");Add("Clic derecho","80010002");Add("Clic central","80010004");Add("Atrás","80010008");Add("Adelante","80010010");
         Add("Pista anterior","800300B6");Add("Reproducir / pausa","800300CD");Add("Pista siguiente","800300B5");Add("Silenciar","800300E2");Add("Subir volumen","800300E9");Add("Bajar volumen","800300EA");
         Add("Subir DPI","90030000");Add("Bajar DPI","90040000");Add("Alternar DPI","90050000");Add("DPI Shift","90070000");Add("DPI predeterminado","90060000");Add("Rueda izquierda","90010000");Add("Rueda derecha","90020000");Add("G-Shift","900B0000");Add("Sin acción","8000FFFF");
